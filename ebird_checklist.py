@@ -5,10 +5,11 @@ Fetch bird species from an eBird checklist URL and display with common names.
 Requires an eBird API key. Get one at: https://ebird.org/api/keygen
 """
 
+import os
 import re
 import sys
 import requests
-from urllib.parse import urlparse
+from urllib.parse import urlparse, quote
 
 
 def extract_checklist_id(url: str) -> str:
@@ -38,6 +39,25 @@ def get_taxonomy(api_key: str) -> dict[str, str]:
 
     taxonomy = response.json()
     return {species["speciesCode"]: species["comName"] for species in taxonomy}
+
+
+def get_species_photo(name: str) -> str | None:
+    """Fetch a photo URL for a species from the Wikipedia REST API."""
+    encoded = quote(name.replace(" ", "_"))
+    url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{encoded}"
+    headers = {"User-Agent": "birdseye/0.1 (https://github.com; bird checklist tool)"}
+
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        data = response.json()
+        if "originalimage" in data:
+            return data["originalimage"]["source"]
+        if "thumbnail" in data:
+            return data["thumbnail"]["source"]
+    except (requests.RequestException, KeyError):
+        pass
+    return None
 
 
 def get_checklist(api_key: str, checklist_id: str) -> dict:
@@ -71,24 +91,52 @@ def get_checklist_species(api_key: str, checklist_url: str) -> list[dict]:
         name = taxonomy.get(code, code)  # Fall back to code if name not found
         count = obs.get("howManyAtleast", obs.get("howManyAtmost", "X"))
 
+        photo_url = get_species_photo(name)
+
         species_list.append({
             "code": code,
             "name": name,
-            "count": count
+            "count": count,
+            "photo_url": photo_url,
         })
 
     return species_list
 
 
+def load_api_key() -> str | None:
+    """Load eBird API key from .env file or environment variable."""
+    # Check environment variable first
+    key = os.environ.get("EBIRD_API_KEY")
+    if key:
+        return key
+
+    # Try .env file in project root
+    env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+    if os.path.exists(env_path):
+        with open(env_path) as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith("EBIRD_API_KEY="):
+                    return line.split("=", 1)[1].strip()
+
+    return None
+
+
 def main():
-    if len(sys.argv) < 3:
-        print("Usage: python ebird_checklist.py <API_KEY> <CHECKLIST_URL>")
-        print("\nGet an API key at: https://ebird.org/api/keygen")
-        print("Example: python ebird_checklist.py abc123 https://ebird.org/checklist/S123456789")
+    if len(sys.argv) < 2:
+        print("Usage: python ebird_checklist.py <CHECKLIST_URL>")
+        print("\nSet your API key in .env (EBIRD_API_KEY=xxx) or as an environment variable.")
+        print("Get an API key at: https://ebird.org/api/keygen")
         sys.exit(1)
 
-    api_key = sys.argv[1]
-    checklist_url = sys.argv[2]
+    api_key = load_api_key()
+    if not api_key:
+        print("Error: No API key found.")
+        print("Create a .env file with: EBIRD_API_KEY=your_key_here")
+        print("Or set the EBIRD_API_KEY environment variable.")
+        sys.exit(1)
+
+    checklist_url = sys.argv[1]
 
     try:
         species = get_checklist_species(api_key, checklist_url)
@@ -100,7 +148,13 @@ def main():
 
         for bird in species:
             count = str(bird["count"]) if bird["count"] else "X"
-            print(f"{count:<8} {bird['code']:<10} {bird['name']}")
+            photo = "+" if bird.get("photo_url") else "-"
+            print(f"{count:<8} {bird['code']:<10} {bird['name']}  [{photo} photo]")
+
+        from generate_site import generate_site
+        output_path = generate_site(species, checklist_url)
+        print(f"\nGenerated site: {output_path}")
+        print("To share: push to GitHub and enable Pages (serve from docs/ on main branch).")
 
     except requests.HTTPError as e:
         print(f"API error: {e}")
