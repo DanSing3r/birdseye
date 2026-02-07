@@ -16,7 +16,6 @@ def generate_site(species: list[dict], checklist_url: str, output_dir: str = "do
     cards_html = []
     for bird in species:
         name = escape(bird["name"])
-        code = escape(bird["code"])
         count = escape(str(bird["count"]) if bird["count"] else "X")
         photo_url = bird.get("photo_url")
 
@@ -29,7 +28,7 @@ def generate_site(species: list[dict], checklist_url: str, output_dir: str = "do
         {img}
         <div class="info">
           <h2>{name}</h2>
-          <p><span class="code">{code}</span> &middot; Count: {count}</p>
+          <p>Count: {count}</p>
         </div>
       </div>""")
 
@@ -57,7 +56,6 @@ def generate_site(species: list[dict], checklist_url: str, output_dir: str = "do
     .info {{ padding: 0.75rem 1rem; }}
     .info h2 {{ font-size: 1.1rem; margin-bottom: 0.25rem; }}
     .info p {{ font-size: 0.85rem; color: #666; }}
-    .code {{ font-family: monospace; background: #f0f0f0; padding: 0.1rem 0.4rem; border-radius: 3px; font-size: 0.8rem; }}
   </style>
 </head>
 <body>
