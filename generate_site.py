@@ -4,7 +4,7 @@ import os
 from html import escape
 
 
-def generate_site(species: list[dict], checklist_url: str, output_dir: str = "docs") -> str:
+def generate_site(species: list[dict], checklist_url: str, *, location: str = "", date: str = "", output_dir: str = "docs") -> str:
     """
     Generate a self-contained HTML page with a responsive grid of species cards.
 
@@ -16,6 +16,7 @@ def generate_site(species: list[dict], checklist_url: str, output_dir: str = "do
     cards_html = []
     for bird in species:
         name = escape(bird["name"])
+        sci_name = escape(bird.get("sci_name", ""))
         count = escape(str(bird["count"]) if bird["count"] else "X")
         photo_url = bird.get("photo_url")
 
@@ -24,10 +25,13 @@ def generate_site(species: list[dict], checklist_url: str, output_dir: str = "do
         else:
             img = f'<div class="no-photo">No photo available</div>'
 
+        sci_line = f'<p class="sci">{sci_name}</p>' if sci_name else ""
+
         cards_html.append(f"""      <div class="card">
         {img}
         <div class="info">
           <h2>{name}</h2>
+          {sci_line}
           <p>Count: {count}</p>
         </div>
       </div>""")
@@ -40,7 +44,7 @@ def generate_site(species: list[dict], checklist_url: str, output_dir: str = "do
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Bird Checklist</title>
+  <title>{escape(location) if location else 'Bird Checklist'}</title>
   <style>
     * {{ margin: 0; padding: 0; box-sizing: border-box; }}
     body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f5f5; color: #333; }}
@@ -54,14 +58,15 @@ def generate_site(species: list[dict], checklist_url: str, output_dir: str = "do
     .card img {{ width: 100%; display: block; }}
     .no-photo {{ width: 100%; height: 220px; background: #e0e0e0; display: flex; align-items: center; justify-content: center; color: #999; font-size: 0.9rem; }}
     .info {{ padding: 0.75rem 1rem; }}
-    .info h2 {{ font-size: 1.1rem; margin-bottom: 0.25rem; }}
+    .info h2 {{ font-size: 1.1rem; margin-bottom: 0.15rem; }}
+    .info .sci {{ font-size: 0.8rem; font-style: italic; color: #999; margin-bottom: 0.15rem; }}
     .info p {{ font-size: 0.85rem; color: #666; }}
   </style>
 </head>
 <body>
   <header>
-    <h1>Bird Checklist</h1>
-    <p>{len(species)} species &middot; <a href="{checklist_escaped}">View on eBird</a></p>
+    <h1>{escape(location) if location else 'Bird Checklist'}</h1>
+    <p>{escape(date) + ' &middot; ' if date else ''}{len(species)} species &middot; <a href="{checklist_escaped}">View on eBird</a></p>
   </header>
   <div class="grid">
 {cards}

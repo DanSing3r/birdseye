@@ -28,8 +28,8 @@ def extract_checklist_id(url: str) -> str:
     raise ValueError(f"Could not extract checklist ID from URL: {url}")
 
 
-def get_taxonomy(api_key: str) -> dict[str, str]:
-    """Fetch eBird taxonomy and return a mapping of species code to common name."""
+def get_taxonomy(api_key: str) -> dict[str, dict]:
+    """Fetch eBird taxonomy and return a mapping of species code to name info."""
     url = "https://api.ebird.org/v2/ref/taxonomy/ebird"
     headers = {"X-eBirdApiToken": api_key}
     params = {"fmt": "json"}
@@ -38,7 +38,10 @@ def get_taxonomy(api_key: str) -> dict[str, str]:
     response.raise_for_status()
 
     taxonomy = response.json()
-    return {species["speciesCode"]: species["comName"] for species in taxonomy}
+    return {
+        s["speciesCode"]: {"name": s["comName"], "sci_name": s.get("sciName", "")}
+        for s in taxonomy
+    }
 
 
 def get_species_photo(name: str) -> str | None:
@@ -71,11 +74,11 @@ def get_checklist(api_key: str, checklist_id: str) -> dict:
     return response.json()
 
 
-def get_checklist_species(api_key: str, checklist_url: str) -> list[dict]:
+def get_checklist_species(api_key: str, checklist_url: str) -> dict:
     """
     Get species from an eBird checklist with their common names.
 
-    Returns a list of dicts with 'code', 'name', and 'count' keys.
+    Returns a dict with 'species' (list), 'location', and 'date' keys.
     """
     checklist_id = extract_checklist_id(checklist_url)
 
@@ -85,10 +88,15 @@ def get_checklist_species(api_key: str, checklist_url: str) -> list[dict]:
     # Fetch the checklist
     checklist = get_checklist(api_key, checklist_id)
 
+    location = checklist.get("locName", "Unknown Location")
+    date = checklist.get("obsDt", "")
+
     species_list = []
     for obs in checklist.get("obs", []):
         code = obs.get("speciesCode", "")
-        name = taxonomy.get(code, code)  # Fall back to code if name not found
+        info = taxonomy.get(code, {"name": code, "sci_name": ""})
+        name = info["name"]
+        sci_name = info["sci_name"]
         count = obs.get("howManyAtleast", obs.get("howManyAtmost", "X"))
 
         photo_url = get_species_photo(name)
@@ -96,11 +104,16 @@ def get_checklist_species(api_key: str, checklist_url: str) -> list[dict]:
         species_list.append({
             "code": code,
             "name": name,
+            "sci_name": sci_name,
             "count": count,
             "photo_url": photo_url,
         })
 
-    return species_list
+    return {
+        "species": species_list,
+        "location": location,
+        "date": date,
+    }
 
 
 def load_api_key() -> str | None:
@@ -139,9 +152,12 @@ def main():
     checklist_url = sys.argv[1]
 
     try:
-        species = get_checklist_species(api_key, checklist_url)
+        result = get_checklist_species(api_key, checklist_url)
+        species = result["species"]
+        location = result["location"]
+        date = result["date"]
 
-        print(f"\nChecklist: {checklist_url}")
+        print(f"\n{location} — {date}")
         print(f"Species count: {len(species)}\n")
         print(f"{'Count':<8} {'Code':<10} {'Common Name'}")
         print("-" * 60)
@@ -152,7 +168,7 @@ def main():
             print(f"{count:<8} {bird['code']:<10} {bird['name']}  [{photo} photo]")
 
         from generate_site import generate_site
-        output_path = generate_site(species, checklist_url)
+        output_path = generate_site(species, checklist_url, location=location, date=date)
         print(f"\nGenerated site: {output_path}")
         print("To share: push to GitHub and enable Pages (serve from docs/ on main branch).")
 
