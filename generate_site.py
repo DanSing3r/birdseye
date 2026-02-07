@@ -52,7 +52,7 @@ def generate_site(species: list[dict], checklist_url: str, *, location: str = ""
     header h1 {{ font-size: 1.5rem; margin-bottom: 0.5rem; }}
     header a {{ color: #b8d4a0; }}
     header p {{ font-size: 0.9rem; opacity: 0.9; }}
-    .grid {{ display: flex; flex-wrap: wrap; gap: 1rem; padding: 1.5rem; max-width: 1400px; margin: 0 auto; }}
+    .grid {{ display: flex; flex-wrap: wrap; align-items: flex-start; gap: 1rem; padding: 1.5rem; max-width: 1400px; margin: 0 auto; }}
     .card {{ background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); flex: 1 1 280px; max-width: 500px; transition: transform 0.2s; }}
     .card:hover {{ transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }}
     .card img {{ width: 100%; display: block; }}

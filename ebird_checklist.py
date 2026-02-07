@@ -8,6 +8,7 @@ Requires an eBird API key. Get one at: https://ebird.org/api/keygen
 import os
 import re
 import sys
+from datetime import datetime
 import requests
 from urllib.parse import urlparse, quote
 
@@ -74,6 +75,29 @@ def get_checklist(api_key: str, checklist_id: str) -> dict:
     return response.json()
 
 
+def get_location_name(api_key: str, loc_id: str) -> str | None:
+    """Look up a location name from its eBird location ID."""
+    url = f"https://api.ebird.org/v2/ref/hotspot/info/{loc_id}"
+    headers = {"X-eBirdApiToken": api_key}
+
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        return response.json().get("name")
+    except requests.RequestException:
+        return None
+
+
+def format_date(obs_dt: str) -> str:
+    """Format an eBird obsDt string like '2026-02-07 14:30' into 'February 7, 2026'."""
+    for fmt in ("%Y-%m-%d %H:%M", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(obs_dt, fmt).strftime("%B %-d, %Y")
+        except ValueError:
+            continue
+    return obs_dt
+
+
 def get_checklist_species(api_key: str, checklist_url: str) -> dict:
     """
     Get species from an eBird checklist with their common names.
@@ -88,8 +112,9 @@ def get_checklist_species(api_key: str, checklist_url: str) -> dict:
     # Fetch the checklist
     checklist = get_checklist(api_key, checklist_id)
 
-    location = checklist.get("locName", "Unknown Location")
-    date = checklist.get("obsDt", "")
+    loc_id = checklist.get("locId", "")
+    location = checklist.get("locName") or get_location_name(api_key, loc_id) or "Unknown Location"
+    date = format_date(checklist.get("obsDt", ""))
 
     species_list = []
     for obs in checklist.get("obs", []):
