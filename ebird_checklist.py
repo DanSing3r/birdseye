@@ -8,6 +8,7 @@ Requires an eBird API key. Get one at: https://ebird.org/api/keygen
 import os
 import re
 import sys
+import time
 from datetime import datetime
 import requests
 from urllib.parse import urlparse, quote
@@ -52,7 +53,7 @@ def get_species_photo(name: str) -> str | None:
     headers = {"User-Agent": "birdseye/0.1 (https://github.com; bird checklist tool)"}
 
     try:
-        response = requests.get(url, headers=headers)
+        response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
         data = response.json()
         if "originalimage" in data:
@@ -107,9 +108,12 @@ def get_checklist_species(api_key: str, checklist_url: str) -> dict:
     checklist_id = extract_checklist_id(checklist_url)
 
     # Fetch taxonomy for code-to-name mapping
+    print("Fetching eBird taxonomy...", flush=True)
     taxonomy = get_taxonomy(api_key)
+    print(f"  Got {len(taxonomy)} species in taxonomy.", flush=True)
 
     # Fetch the checklist
+    print(f"Fetching checklist {checklist_id}...", flush=True)
     checklist = get_checklist(api_key, checklist_id)
 
     loc_id = checklist.get("locId", "")
@@ -124,7 +128,9 @@ def get_checklist_species(api_key: str, checklist_url: str) -> dict:
         sci_name = info["sci_name"]
         count = obs.get("howManyAtleast", obs.get("howManyAtmost", "X"))
 
+        print(f"  [{len(species_list)+1}] Fetching photo for {name}...", flush=True)
         photo_url = get_species_photo(name)
+        time.sleep(0.5)
 
         species_list.append({
             "code": code,
