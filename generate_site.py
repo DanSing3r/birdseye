@@ -39,12 +39,30 @@ def generate_site(species: list[dict], checklist_url: str, *, location: str = ""
     cards = "\n".join(cards_html)
     checklist_escaped = escape(checklist_url)
 
+    title = location if location else "Bird Checklist"
+    description_parts = []
+    if date:
+        description_parts.append(date)
+    description_parts.append(f"{len(species)} species")
+    description = " · ".join(description_parts)
+
+    og_image = next((b["photo_url"] for b in species if b.get("photo_url")), None)
+    og_image_tag = f'\n  <meta property="og:image" content="{escape(og_image)}">' if og_image else ""
+
+    favicon = '<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>%F0%9F%90%A6</text></svg>">'
+
     html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{escape(location) if location else 'Bird Checklist'}</title>
+  <title>{escape(title)}</title>
+  {favicon}
+  <meta property="og:title" content="{escape(title)}">
+  <meta property="og:description" content="{escape(description)}">
+  <meta property="og:type" content="website">{og_image_tag}
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="description" content="{escape(description)}">
   <style>
     * {{ margin: 0; padding: 0; box-sizing: border-box; }}
     body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f5f5; color: #333; }}
