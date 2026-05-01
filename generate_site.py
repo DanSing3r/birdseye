@@ -19,6 +19,7 @@ def generate_site(species: list[dict], checklist_url: str, *, location: str = ""
         sci_name = escape(bird.get("sci_name", ""))
         count = escape(str(bird["count"]) if bird["count"] else "X")
         photo_url = bird.get("photo_url")
+        code = bird.get("code", "")
 
         if photo_url:
             img = f'<img src="{escape(photo_url)}" alt="{name}" loading="lazy">'
@@ -27,14 +28,22 @@ def generate_site(species: list[dict], checklist_url: str, *, location: str = ""
 
         sci_line = f'<p class="sci">{sci_name}</p>' if sci_name else ""
 
-        cards_html.append(f"""      <div class="card">
+        if code:
+            species_url = escape(f"https://ebird.org/species/{code}")
+            card_open = f'<a class="card" href="{species_url}" target="_blank" rel="noopener">'
+            card_close = "</a>"
+        else:
+            card_open = '<div class="card">'
+            card_close = "</div>"
+
+        cards_html.append(f"""      {card_open}
         {img}
         <div class="info">
           <h2>{name}</h2>
           {sci_line}
           <p>Count: {count}</p>
         </div>
-      </div>""")
+      {card_close}""")
 
     cards = "\n".join(cards_html)
     checklist_escaped = escape(checklist_url)
@@ -73,12 +82,13 @@ def generate_site(species: list[dict], checklist_url: str, *, location: str = ""
     .grid {{ columns: 3; column-gap: 1rem; padding: 1.5rem; max-width: 1200px; margin: 0 auto; }}
     @media (max-width: 900px) {{ .grid {{ columns: 2; }} }}
     @media (max-width: 500px) {{ .grid {{ columns: 1; }} }}
-    .card {{ background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); break-inside: avoid; margin-bottom: 1rem; transition: transform 0.2s; }}
+    .card {{ display: block; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); break-inside: avoid; margin-bottom: 1rem; transition: transform 0.2s, box-shadow 0.2s; color: inherit; text-decoration: none; }}
     .card:hover {{ transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }}
+    .card:hover .info h2 {{ color: #2d5016; }}
     .card img {{ width: 100%; display: block; }}
     .no-photo {{ width: 100%; height: 220px; background: #e0e0e0; display: flex; align-items: center; justify-content: center; color: #999; font-size: 0.9rem; }}
     .info {{ padding: 0.75rem 1rem; }}
-    .info h2 {{ font-size: 1.1rem; margin-bottom: 0.15rem; }}
+    .info h2 {{ font-size: 1.1rem; margin-bottom: 0.15rem; transition: color 0.15s; }}
     .info .sci {{ font-size: 0.8rem; font-style: italic; color: #999; margin-bottom: 0.15rem; }}
     .info p {{ font-size: 0.85rem; color: #666; }}
   </style>
